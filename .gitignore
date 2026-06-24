@@ -1,0 +1,7 @@
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore backup folders
+Computer_Vision_Step_by_Step/
+duplicates_backup/
+
