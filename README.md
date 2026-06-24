@@ -1,5 +1,7 @@
 # Facial-Emotion-Recognition-Using-Deep-Learning
 
+### deployed link
+https://facial-emotion-regognition-cdhasa5n7c3lms8xzjbw8g.streamlit.app/
 ### Project Summary
 This project, titled "DeepFER" (Deep Facial Emotion Recognition), is a deep learning-based system designed to recognize human emotions from facial expressions in real-time. It leverages the power of Convolutional Neural Networks (CNNs) and Transfer Learning to classify facial images into one of seven fundamental emotion categories: Angry, Sad, Happy, Fear, Neutral, Disgust, and Surprise.
 
