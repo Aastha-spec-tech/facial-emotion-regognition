@@ -2,14 +2,15 @@ import streamlit as st
 import cv2
 import numpy as np
 from PIL import Image
-from tensorflow.keras.models import load_model
+import onnxruntime as ort
 import tempfile
 import os
 
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-model = load_model('best_emotion_model.keras', compile=False)
+session = ort.InferenceSession('best_emotion_model.onnx')
+input_name = session.get_inputs()[0].name
 
 classes = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
 
@@ -19,14 +20,14 @@ def preprocess_face(face_img):
     face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
     face = face / 255.0
     face = np.expand_dims(face, axis=-1)
-    face = np.expand_dims(face, axis=0)
+    face = np.expand_dims(face, axis=0).astype(np.float32)
     return face
 
 
 def predict_emotion(face_img):
     processed = preprocess_face(face_img)
-    prediction = model.predict(processed)
-    class_idx = np.argmax(prediction)
+    result = session.run(None, {input_name: processed})
+    class_idx = np.argmax(result[0])
     return classes[class_idx]
 
 
@@ -53,14 +54,16 @@ if app_mode == "Image Upload":
         gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.1, 5)
 
-        for (x, y, w, h) in faces:
-            face_img = image_np[y:y + h, x:x + w]
-            label = predict_emotion(face_img)
-            cv2.rectangle(image_np, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            cv2.putText(image_np, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.9, (36, 255, 12), 2)
-
-        st.image(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB), caption="Result", use_column_width=True)
+        if len(faces) == 0:
+            st.warning("No faces detected in the image.")
+        else:
+            for (x, y, w, h) in faces:
+                face_img = image_np[y:y + h, x:x + w]
+                label = predict_emotion(face_img)
+                cv2.rectangle(image_np, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(image_np, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.9, (36, 255, 12), 2)
+            st.image(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB), caption="Result", use_column_width=True)
 
 
 # ---------------------------- VIDEO Upload ----------------------------
