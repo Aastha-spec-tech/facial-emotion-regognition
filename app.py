@@ -5,6 +5,8 @@ from PIL import Image
 import onnxruntime as ort
 import tempfile
 import os
+import av
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -128,26 +130,32 @@ elif app_mode == "Video Upload":
 
 # ---------------------------- WEBCAM ----------------------------
 elif app_mode == "Webcam":
-    st.subheader("Webcam — Capture & Detect Emotion")
-    st.info("Click 'Take Photo' to capture from your webcam. The app will detect the emotion in the photo.")
+    st.subheader("Webcam — Real-Time Emotion Detection")
+    st.info("Allow camera access and click START to begin live emotion detection. Detection updates continuously as your expression changes.")
 
-    img_file = st.camera_input("Take Photo")
+    RTC_CONFIG = RTCConfiguration(
+        {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+    )
 
-    if img_file is not None:
-        image = Image.open(img_file)
-        image_np = np.array(image.convert('RGB'))
-        image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    class EmotionDetector(VideoProcessorBase):
+        def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+            img = frame.to_ndarray(format="bgr24")
 
-        gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray, 1.1, 5)
 
-        if len(faces) == 0:
-            st.warning("No faces detected. Please try again.")
-        else:
             for (x, y, w, h) in faces:
-                face_img = image_np[y:y + h, x:x + w]
+                face_img = img[y:y + h, x:x + w]
                 label = predict_emotion(face_img)
-                cv2.rectangle(image_np, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                cv2.putText(image_np, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(img, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
                             0.9, (36, 255, 12), 2)
-            st.image(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB), caption="Result", use_column_width=True)
+
+            return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+    webrtc_streamer(
+        key="emotion-detection",
+        video_processor_factory=EmotionDetector,
+        rtc_configuration=RTC_CONFIG,
+        media_stream_constraints={"video": True, "audio": False},
+    )
