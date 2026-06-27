@@ -36,7 +36,7 @@ st.sidebar.title("Select Mode")
 
 app_mode = st.sidebar.selectbox(
     "Choose an option",
-    ["Image Upload", "Video Upload"]
+    ["Image Upload", "Video Upload", "Webcam"]
 )
 
 # ---------------------------- IMAGE Upload ----------------------------
@@ -124,3 +124,30 @@ elif app_mode == "Video Upload":
 
         os.remove(tfile.name)
         os.remove(output_path)
+
+
+# ---------------------------- WEBCAM ----------------------------
+elif app_mode == "Webcam":
+    st.subheader("Webcam — Capture & Detect Emotion")
+    st.info("Click 'Take Photo' to capture from your webcam. The app will detect the emotion in the photo.")
+
+    img_file = st.camera_input("Take Photo")
+
+    if img_file is not None:
+        image = Image.open(img_file)
+        image_np = np.array(image.convert('RGB'))
+        image_np = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+        gray = cv2.cvtColor(image_np, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.1, 5)
+
+        if len(faces) == 0:
+            st.warning("No faces detected. Please try again.")
+        else:
+            for (x, y, w, h) in faces:
+                face_img = image_np[y:y + h, x:x + w]
+                label = predict_emotion(face_img)
+                cv2.rectangle(image_np, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                cv2.putText(image_np, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.9, (36, 255, 12), 2)
+            st.image(cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB), caption="Result", use_column_width=True)
